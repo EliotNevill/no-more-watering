@@ -1,21 +1,32 @@
 #include <LiquidCrystal.h>
-
 #include <EEPROM.h>
-
 #include <TimeAlarms.h>
-
 #include <Time.h>
 #include <TimeLib.h>
 
 
 
 void setup() {
-  // put your setup code here, to run once:
+  // setup lcd
+  // setup buttons, inputs outputs
+  // set time 
+  
+  
  
+}
+void check(){
+//Check timealarms
+  
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  //is time set?
+  //menu 
+  // check()
+  //lcd/temp main loop
+  
 
 }
 //This is a comment
+
+
