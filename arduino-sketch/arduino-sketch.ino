@@ -1,10 +1,24 @@
-void setup() {
-  // put your setup code here, to run once:
+unsigned long oldTime = 0;
+unsigned long = currentTime;
+const long gap = 86400000;
 
+
+void setup() {
+
+
+ 
+ 
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  currentTime = millis();
+  if(currentTime - oldTime > gap){
 
+
+
+    currentTime = oldTime;
+    
+
+  
+  }
 }
-//This is a comment
