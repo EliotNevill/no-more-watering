@@ -16,6 +16,7 @@ using namespace std;
 
 const int numPumps = 4;
 int currentPump;
+long oldTime;
 
 
 //LCD init
@@ -74,12 +75,22 @@ class MyRenderer : public MenuComponentRenderer
     {
       lcd.clear();
       lcd.setCursor(0, 0);
+      if(_sleep){
+      lcd.setCursor(0, 1);
+      lcd.print("Sleeping");
+      }else{
       lcd.print(menu.get_name());
       lcd.setCursor(0, 1);
       menu.get_current_component()->render(*this);
+      }
+
+
     }
     void setPumps(vector<Pump> &pumps){
        _pumps = pumps;
+    }
+    void sleep(bool sleep){
+      _sleep = sleep;
     }
     virtual void render_menu_item(MenuItem const & menu_item) const
     {
@@ -108,6 +119,7 @@ class MyRenderer : public MenuComponentRenderer
     }
     private:
      vector<Pump> _pumps;
+     bool _sleep = false;
 };
 MyRenderer my_renderer;
 
@@ -138,6 +150,7 @@ MenuItem pm_set_f("Frequency", &on_click_f);
 void serialHandler() {
   char inChar;
   if ((inChar = Serial.read()) > 0) {
+    oldTime = now();
     switch (inChar) {
       case 'w': // Previus item
         ms.prev();
@@ -185,6 +198,7 @@ void setup() {
   Serial.begin(9600);
   lcd.begin(16, 2);
   setTime(8,29,0,1,1,11);
+  oldTime = now();
  
   pumps.push_back(pm_1);
   pumps.push_back(pm_2);
@@ -214,8 +228,18 @@ void setup() {
 
 void loop() {
   serialHandler();
+  ms.display();
+
   my_renderer.setPumps(pumps);
-  Alarm.delay(0);
+  if( (now()-oldTime) > 3){
+    my_renderer.sleep(true);
+    Serial.println(oldTime);
+  }else{
+    my_renderer.sleep(false);
+    Serial.println("Awake");
+  }
+  
+  Alarm.delay(30);
 }
 //This is a comment
 
