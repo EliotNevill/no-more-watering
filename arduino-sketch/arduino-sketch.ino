@@ -14,6 +14,7 @@
 #include <TimeLib.h>
 
 using namespace std;
+typedef void (*Pointer)();
 
 //LCD init
 const int numPumps = 4;
@@ -22,37 +23,51 @@ long oldTime;
 LiquidCrystal lcd(6, 7, 5, 4, 3, 2);
 
 
+time_t HMTime(int h, int m) {
+  time_t hmtime ;
+  hmtime = h  * 3600 +  m * 60 ;
+  return hmtime;
+}
+
 //Pump
 class Pump : public Menu {
 
   public:
-
+    const int pumpNumber;
+    int duration_h = 0;
+    int duration_m = 0;
+    boolean isWatering = false;
+    int alarmId, alarmEndId;
+    boolean _enabled = false;
     Pump (const char* pName, int pNum)
-      : Menu(pName) {
-      pumpNumber = pNum;
+      : Menu(pName) , pumpNumber(pNum) {
     }
-    unsigned long wateringTime() {
-      return _wateringTime;
-    }
-    void wateringTime(unsigned long &wateringTime) {
-      _wateringTime = wateringTime;
+
+    void setWateringTime(int h, int m) {
+      Alarm.write(alarmId , HMTime(h, m) );
     }
     void toggle() {
       if (_enabled) {
         _enabled = false;
+        Alarm.disable(alarmId);
+        stopWatering();
       } else if (!_enabled) {
         _enabled = true;
+        Alarm.enable(alarmId);
       }
     }
     boolean enabled() const {
       return _enabled;
     }
+    void startWatering() {
+      isWatering = true;
+    }
+    void stopWatering() {
+      isWatering = false;
+    }
   private:
     unsigned long _wateringTime;
-    boolean _enabled = false;
-    int pumpNumber;
 };
-
 
 //Pump objects
 Pump pm_1("Pump 1", 1);
@@ -60,7 +75,6 @@ Pump pm_2("Pump 2", 2);
 Pump pm_3("Pump 3", 3);
 Pump pm_4("Pump 4", 4);
 vector<Pump> pumps;
-
 
 
 // Renderer
@@ -75,14 +89,14 @@ class MyRenderer : public MenuComponentRenderer
       if (_sleep) {
         lcd.setCursor(0, 1);
         lcd.print("Sleeping");
-     //   Serial.print(print_time(3,4));
+        //   Serial.print(print_time(3,4));
       } else {
 
-        if(strlen(menu.get_name())==0 )
+        if (strlen(menu.get_name()) == 0 )
           lcd.print("Main Menu");
         else
           lcd.print(menu.get_name());
-          
+
         lcd.setCursor(0, 1);
         menu.get_current_component()->render(*this);
       }
@@ -93,18 +107,8 @@ class MyRenderer : public MenuComponentRenderer
     void sleep(bool sleep) {
       _sleep = sleep;
     }
-  /* static String print_time(int h,int m){
-      String prettyTime = "";
-      stringstream ss;
-      if(h < 10)
-        ss << '0' << h ;
-      else
-        ss << h ;
-      return ss.str();
-      
-       
-      
-    }*/ 
+
+
     virtual void render_menu_item(MenuItem const & menu_item) const
     {
       String menuItemName = menu_item.get_name();
@@ -145,6 +149,27 @@ void on_click_t(MenuItem* p_menu_item) {
 void on_click_d(MenuItem* p_menu_item) {}
 void on_click_f(MenuItem* p_menu_item) {}
 
+//Pump alarm callback functions
+void pump_alarm_1() {
+  pumps[0].startWatering();
+  Alarm.write(pumps[0].alarmEndId, HMTime(pumps[0].duration_h, pumps[0].duration_m));
+}
+void pump_alarm_2() {
+  pumps[1].startWatering();
+  Alarm.write(pumps[1].alarmEndId, HMTime(pumps[1].duration_h, pumps[1].duration_m));
+}
+void pump_alarm_3() {
+  pumps[2].startWatering();
+  Alarm.write(pumps[2].alarmEndId, HMTime(pumps[2].duration_h, pumps[2].duration_m));
+}
+void pump_alarm_4() {
+  pumps[3].startWatering();
+  Alarm.write(pumps[3].alarmEndId, HMTime(pumps[3].duration_h, pumps[3].duration_m));
+}
+void pump_end_alarm_1() {pumps[0].stopWatering();}
+void pump_end_alarm_2() {pumps[1].stopWatering();}
+void pump_end_alarm_3() {pumps[2].stopWatering();}
+void pump_end_alarm_4() {pumps[3].stopWatering();}
 
 
 // Menu variables
@@ -207,21 +232,47 @@ void setup() {
   setTime(8, 29, 0, 1, 1, 11);
   oldTime = now();
 
+
+
+  //Add pumps to the menu
   pumps.push_back(pm_1);
   pumps.push_back(pm_2);
   pumps.push_back(pm_3);
   pumps.push_back(pm_4);
-
+  //Add the settings to the pumps
   pm_set.add_item(&pm_set_t);
   pm_set.add_item(&pm_set_d);
   pm_set.add_item(&pm_set_f);
 
   for (int i = 0; i <= numPumps; i++) {
+    //Add settings and status to the pumps
     ms.get_root_menu().add_menu(&pumps[i]);
     pumps[i].add_item(&pm_stat);
     pumps[i].add_menu(&pm_set);
   }
   ms.get_root_menu().add_menu(&sm);
+
+
+  //Create alarms for pumps
+  pumps[0].alarmId = Alarm.alarmRepeat(HMTime(0, 0), &pump_alarm_1);
+  pumps[1].alarmId = Alarm.alarmRepeat(HMTime(0, 0), &pump_alarm_2);
+  pumps[2].alarmId = Alarm.alarmRepeat(HMTime(0, 0), &pump_alarm_3);
+  pumps[3].alarmId = Alarm.alarmRepeat(HMTime(0, 0), &pump_alarm_4);
+
+  //The alarm to stop the water flowing
+  pumps[0].alarmEndId = Alarm.timerOnce(0, &pump_end_alarm_1);
+  pumps[1].alarmEndId = Alarm.timerOnce(0, &pump_end_alarm_2);
+  pumps[2].alarmEndId = Alarm.timerOnce(0, &pump_end_alarm_3);
+  pumps[3].alarmEndId = Alarm.timerOnce(0, &pump_end_alarm_4);
+
+  //Disabling all alarms by default
+    for (int i = 0; i <= numPumps; i++) {
+      Alarm.disable(pumps[i].alarmId);
+      Alarm.disable(pumps[i].alarmEndId);
+    }
+
+
+  //start displaying
   ms.display();
 
 
@@ -232,12 +283,12 @@ void loop() {
   ms.display();
   Alarm.delay(50);
 
-  
+
   //Sleep Clock
   if ( (now() - oldTime) > 3) {
     my_renderer.sleep(true);
   } else {
     my_renderer.sleep(false);
-  } 
+  }
 }
 
