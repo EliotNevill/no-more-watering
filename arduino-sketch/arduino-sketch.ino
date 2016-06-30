@@ -3,6 +3,7 @@
 #include <unwind-cxx.h>
 #include <utility.h>
 #include <vector>
+#include <sstream>
 
 
 #include <MenuSystem.h>
@@ -14,25 +15,20 @@
 
 using namespace std;
 
+//LCD init
 const int numPumps = 4;
 int currentPump;
 long oldTime;
-
-
-//LCD init
 LiquidCrystal lcd(6, 7, 5, 4, 3, 2);
 
 
 //Pump
-class Pump : public Menu{
-    
-    
-    unsigned long wateringDuration;
+class Pump : public Menu {
 
   public:
-    
-    Pump (const char* pName, int pNum) 
-    :Menu(pName) {
+
+    Pump (const char* pName, int pNum)
+      : Menu(pName) {
       pumpNumber = pNum;
     }
     unsigned long wateringTime() {
@@ -41,66 +37,83 @@ class Pump : public Menu{
     void wateringTime(unsigned long &wateringTime) {
       _wateringTime = wateringTime;
     }
-    void toggle(){
-      if(_enabled){
+    void toggle() {
+      if (_enabled) {
         _enabled = false;
-      }else if(!_enabled){
+      } else if (!_enabled) {
         _enabled = true;
       }
     }
-    boolean enabled() const{
+    boolean enabled() const {
       return _enabled;
     }
- private:
+  private:
     unsigned long _wateringTime;
     boolean _enabled = false;
     int pumpNumber;
 };
 
-Pump pm_1("Pump 1",1);
-Pump pm_2("Pump 2",2);
-Pump pm_3("Pump 3",3);
-Pump pm_4("Pump 4",4);
-//extern Pump* pumps[numPumps] ; //= {pm_1, pm_2, pm_3, pm_4};
-static vector<Pump> pumps;
+
+//Pump objects
+Pump pm_1("Pump 1", 1);
+Pump pm_2("Pump 2", 2);
+Pump pm_3("Pump 3", 3);
+Pump pm_4("Pump 4", 4);
+vector<Pump> pumps;
 
 
 
 // Renderer
 class MyRenderer : public MenuComponentRenderer
 {
-  
+
   public:
     virtual void render(Menu const & menu) const
     {
       lcd.clear();
       lcd.setCursor(0, 0);
-      if(_sleep){
-      lcd.setCursor(0, 1);
-      lcd.print("Sleeping");
-      }else{
-      lcd.print(menu.get_name());
-      lcd.setCursor(0, 1);
-      menu.get_current_component()->render(*this);
+      if (_sleep) {
+        lcd.setCursor(0, 1);
+        lcd.print("Sleeping");
+     //   Serial.print(print_time(3,4));
+      } else {
+
+        if(strlen(menu.get_name())==0 )
+          lcd.print("Main Menu");
+        else
+          lcd.print(menu.get_name());
+          
+        lcd.setCursor(0, 1);
+        menu.get_current_component()->render(*this);
       }
 
 
     }
-    void setPumps(vector<Pump> &pumps){
-       _pumps = pumps;
-    }
-    void sleep(bool sleep){
+
+    void sleep(bool sleep) {
       _sleep = sleep;
     }
+  /* static String print_time(int h,int m){
+      String prettyTime = "";
+      stringstream ss;
+      if(h < 10)
+        ss << '0' << h ;
+      else
+        ss << h ;
+      return ss.str();
+      
+       
+      
+    }*/ 
     virtual void render_menu_item(MenuItem const & menu_item) const
     {
       String menuItemName = menu_item.get_name();
       if (menuItemName == "Toggle") {
-        lcd.print(_pumps[currentPump].enabled()? "Toggle       Off":"Toggle        On");
-      }else{
+        lcd.print(pumps[currentPump].enabled() ? "Toggle       Off" : "Toggle        On");
+      } else {
         lcd.print(menu_item.get_name());
       }
-      
+
     }
 
     virtual void render_back_menu_item(BackMenuItem const & menu_item) const
@@ -117,29 +130,26 @@ class MyRenderer : public MenuComponentRenderer
     {
       lcd.print(menu.get_name());
     }
-    private:
-     vector<Pump> _pumps;
-     bool _sleep = false;
+  private:
+    bool _sleep = false;
 };
 MyRenderer my_renderer;
 
-// Menu callback function
+// Menu callback functions
 void on_click_s(MenuItem* p_menu_item) {}
 void on_click_t(MenuItem* p_menu_item) {
   if (p_menu_item->get_name() == "Toggle") {
     pumps[currentPump].toggle();
   }
-  }
+}
 void on_click_d(MenuItem* p_menu_item) {}
 void on_click_f(MenuItem* p_menu_item) {}
+
+
 
 // Menu variables
 MenuSystem ms(my_renderer);
 Menu mm();
-
-//pumps[2].Pump("Pump 1",1)
-/*
-*/
 Menu sm("Settings");
 MenuItem pm_stat("Status", &on_click_s);
 Menu pm_set("Settings");
@@ -147,6 +157,9 @@ MenuItem pm_set_t("Toggle", &on_click_t);
 MenuItem pm_set_d("Duration", &on_click_d);
 MenuItem pm_set_f("Frequency", &on_click_f);
 
+
+//Serial Handerler for inputs
+//TODO replace with buttons
 void serialHandler() {
   char inChar;
   if ((inChar = Serial.read()) > 0) {
@@ -172,42 +185,33 @@ void serialHandler() {
       default:
         break;
     }
-  }
-  String menuName = ms.get_current_menu()->get_name();
-  if (menuName == "Pump 1") {
-    currentPump = 1;
-  } else if (menuName == "Pump 2") {
-    currentPump = 2;
-  } else if (menuName == "Pump 3") {
-    currentPump = 3;
-  } else if (menuName == "Pump 4") {
-    currentPump = 4;
-  }
 
-  /*else if(strcmp(menuName, "Pump 2") == 0) {
-    currentPump = 2;
-    }else if(strcmp(menuName, "Pump 3") == 0) {
-    currentPump = 3;
-    }else if(strcmp(menuName, "Pump 4") == 0) {
-    currentPump = 4;
+    //Sets the current pump
+    String menuName = ms.get_current_menu()->get_name();
+    if (menuName == "Pump 1") {
+      currentPump = 1;
+    } else if (menuName == "Pump 2") {
+      currentPump = 2;
+    } else if (menuName == "Pump 3") {
+      currentPump = 3;
+    } else if (menuName == "Pump 4") {
+      currentPump = 4;
     }
-  */
+
+  }
 }
 void setup() {
 
   Serial.begin(9600);
   lcd.begin(16, 2);
-  setTime(8,29,0,1,1,11);
+  setTime(8, 29, 0, 1, 1, 11);
   oldTime = now();
- 
+
   pumps.push_back(pm_1);
   pumps.push_back(pm_2);
   pumps.push_back(pm_3);
   pumps.push_back(pm_4);
-  
- /* pumps.push_back(pm_3);
-  pumps.push_back(pm_4);
-*/
+
   pm_set.add_item(&pm_set_t);
   pm_set.add_item(&pm_set_d);
   pm_set.add_item(&pm_set_f);
@@ -220,27 +224,20 @@ void setup() {
   ms.get_root_menu().add_menu(&sm);
   ms.display();
 
-  // setup lcdz
-  // setup buttons, inputs outputs
-  // set time
 
 }
 
 void loop() {
   serialHandler();
   ms.display();
+  Alarm.delay(50);
 
-  my_renderer.setPumps(pumps);
-  if( (now()-oldTime) > 3){
-    my_renderer.sleep(true);
-    Serial.println(oldTime);
-  }else{
-    my_renderer.sleep(false);
-    Serial.println("Awake");
-  }
   
-  Alarm.delay(30);
+  //Sleep Clock
+  if ( (now() - oldTime) > 3) {
+    my_renderer.sleep(true);
+  } else {
+    my_renderer.sleep(false);
+  } 
 }
-//This is a comment
-
 
