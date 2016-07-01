@@ -87,9 +87,23 @@ class MyRenderer : public MenuComponentRenderer
       lcd.clear();
       lcd.setCursor(0, 0);
       if (_sleep) {
+<<<<<<< HEAD
         lcd.setCursor(0, 1);
         lcd.print("Sleeping");
         //   Serial.print(print_time(3,4));
+=======
+        lcd.print("NMW");
+        print_time(hour(),minute(),5,0);
+       /* lcd.setCursor(0, 0);
+        lcd.print("NMW");
+        lcd.setCursor(6,0);
+        lcd.print(hour());
+        lcd.setCursor(8,0);
+        lcd.print(':');
+        lcd.setCursor(9,0);
+        lcd.print(minute());*/
+     //   Serial.print(print_time(3,4));
+>>>>>>> origin/master
       } else {
 
         if (strlen(menu.get_name()) == 0 )
@@ -107,8 +121,18 @@ class MyRenderer : public MenuComponentRenderer
     void sleep(bool sleep) {
       _sleep = sleep;
     }
+<<<<<<< HEAD
 
 
+=======
+  void print_time(int h,int m, int x, int y) const{
+      lcd.leftToRight();
+      lcd.setCursor(x,y);
+      lcd.print(h);
+      lcd.print(':');
+      lcd.print(m);
+    }
+>>>>>>> origin/master
     virtual void render_menu_item(MenuItem const & menu_item) const
     {
       String menuItemName = menu_item.get_name();
@@ -119,7 +143,7 @@ class MyRenderer : public MenuComponentRenderer
       }
 
     }
-
+    
     virtual void render_back_menu_item(BackMenuItem const & menu_item) const
     {
       lcd.print(menu_item.get_name());
