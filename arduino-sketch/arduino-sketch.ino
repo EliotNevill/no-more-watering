@@ -23,6 +23,69 @@ long oldTime;
 LiquidCrystal lcd(6, 7, 5, 4, 3, 2);
 
 
+class TimeAdjustor {
+  public:
+    static int HMSselector;
+    static void forwardsHMS() {
+      if (HMSselector < 3)
+        HMSselector++;
+    }
+    static  void backHMS() {
+      if (HMSselector > 0)
+        HMSselector--;
+    }
+    static void increaseHMS() {
+      if (HMSselector == 1) {
+        (*hours) ++;
+      } else if (HMSselector == 2) {
+        (*minutes)++;
+      } else if (HMSselector == 3) {
+        (*seconds)++;
+      }
+      timeFixer();
+    }
+    static  void decreaseHMS() {
+      if (HMSselector == 1) {
+        (*hours)--;
+      } else if (HMSselector == 2) {
+        (*minutes)--;
+      } else if (HMSselector == 3) {
+        (*seconds)--;
+      }
+      timeFixer();
+    }
+    static void setHMS(int* h, int* m, int* s) {
+      hours = h;
+      minutes = m;
+      seconds = s;
+    }
+
+
+
+  private:
+    static int mod(int a, int b){      
+      return (a%b+b)%b; 
+    }
+    static void timeFixer() {
+      if (*seconds > 59 || *seconds < 0) {
+        *seconds = mod(*seconds , 60);
+      }
+      if (*minutes > 59 || *minutes < 0) {
+        *minutes = mod(*minutes, 60);
+      }
+      if (*hours > 23 || *hours < 0) {
+        *hours = mod(*hours , 24);
+      }
+
+    }
+
+    static int * hours, * minutes, * seconds;
+};
+int TimeAdjustor::HMSselector = 0;
+int* TimeAdjustor::hours;
+int* TimeAdjustor::minutes;
+int* TimeAdjustor::seconds;
+
 time_t HMTime(int h, int m) {
   time_t hmtime ;
   hmtime = h  * 3600 +  m * 60 ;
@@ -30,17 +93,21 @@ time_t HMTime(int h, int m) {
 }
 
 //Pump
-class Pump : public Menu {
+class Pump : public Menu{
 
   public:
     const int pumpNumber;
-    int duration_h = 0;
+    int duration_h;
     int duration_m = 0;
+    int duration_s = 0;
+    int time_h = 0;
+    int time_m = 0;
+    int time_s = 0;
     boolean isWatering = false;
     int alarmId, alarmEndId;
     boolean _enabled = false;
     Pump (const char* pName, int pNum)
-      : Menu(pName) , pumpNumber(pNum) {
+      : Menu(pName), pumpNumber(pNum) {
     }
 
     void setWateringTime(int h, int m) {
@@ -86,23 +153,13 @@ class MyRenderer : public MenuComponentRenderer
     {
       lcd.clear();
       lcd.setCursor(0, 0);
+
       if (_sleep) {
 
         lcd.setCursor(0, 1);
         lcd.print("Sleeping");
-        //   Serial.print(print_time(3,4));
-
         lcd.print("NMW");
-        print_time(hour(),minute(),5,0);
-       /* lcd.setCursor(0, 0);
-        lcd.print("NMW");
-        lcd.setCursor(6,0);
-        lcd.print(hour());
-        lcd.setCursor(8,0);
-        lcd.print(':');
-        lcd.setCursor(9,0);
-        lcd.print(minute());*/
-     //   Serial.print(print_time(3,4));
+        print_time(hour(), minute(), 5, 0);
 
       } else {
 
@@ -121,12 +178,19 @@ class MyRenderer : public MenuComponentRenderer
     void sleep(bool sleep) {
       _sleep = sleep;
     }
+    void cursorHighlight(int x, int y) {
+      cursorHighlight_x = x;
+      cursorHighlight_y = y;
+    }
 
-  void print_time(int h,int m, int x, int y) const{
-      lcd.leftToRight();
-      lcd.setCursor(x,y);
+    void print_time(int h, int m, int x, int y) const {
+      lcd.setCursor(x, y);
+      if (h < 10)
+        lcd.print('0');
       lcd.print(h);
       lcd.print(':');
+      if (m < 10)
+        lcd.print('0');
       lcd.print(m);
     }
 
@@ -134,14 +198,18 @@ class MyRenderer : public MenuComponentRenderer
     virtual void render_menu_item(MenuItem const & menu_item) const
     {
       String menuItemName = menu_item.get_name();
+      lcd.print(menuItemName);
       if (menuItemName == "Toggle") {
-        lcd.print(pumps[currentPump].enabled() ? "Toggle       Off" : "Toggle        On");
-      } else {
-        lcd.print(menu_item.get_name());
+        lcd.setCursor(13, 1);
+        lcd.print(pumps[currentPump].enabled() ? "Off" : "On");
+      } else if (menuItemName == "Duration") {
+        print_time(pumps[currentPump].duration_h, pumps[currentPump].duration_m, 11, 1);
+      } else if (menuItemName == "Time") {
+        print_time(pumps[currentPump].time_h, pumps[currentPump].time_m, 11, 1);
       }
 
     }
-    
+
     virtual void render_back_menu_item(BackMenuItem const & menu_item) const
     {
       lcd.print(menu_item.get_name());
@@ -158,18 +226,30 @@ class MyRenderer : public MenuComponentRenderer
     }
   private:
     bool _sleep = false;
+    int cursorHighlight_x, cursorHighlight_y;
 };
 MyRenderer my_renderer;
 
 // Menu callback functions
 void on_click_s(MenuItem* p_menu_item) {}
-void on_click_t(MenuItem* p_menu_item) {
+void on_click_to(MenuItem* p_menu_item) {
   if (p_menu_item->get_name() == "Toggle") {
     pumps[currentPump].toggle();
   }
 }
-void on_click_d(MenuItem* p_menu_item) {}
-void on_click_f(MenuItem* p_menu_item) {}
+void on_click_d(MenuItem* p_menu_item) {
+  if (p_menu_item->get_name() == "Duration") {
+    TimeAdjustor::setHMS(&pumps[currentPump].duration_h , &pumps[currentPump].duration_m , &pumps[currentPump].duration_s);
+    TimeAdjustor::forwardsHMS();
+  }
+}
+void on_click_ti(MenuItem* p_menu_item) {
+    if (p_menu_item->get_name() == "Time") {
+    TimeAdjustor::setHMS(&pumps[currentPump].time_h , &pumps[currentPump].time_h , &pumps[currentPump].time_h);
+    TimeAdjustor::forwardsHMS();
+  }
+  }
+
 
 //Pump alarm callback functions
 void pump_alarm_1() {
@@ -188,10 +268,18 @@ void pump_alarm_4() {
   pumps[3].startWatering();
   Alarm.write(pumps[3].alarmEndId, HMTime(pumps[3].duration_h, pumps[3].duration_m));
 }
-void pump_end_alarm_1() {pumps[0].stopWatering();}
-void pump_end_alarm_2() {pumps[1].stopWatering();}
-void pump_end_alarm_3() {pumps[2].stopWatering();}
-void pump_end_alarm_4() {pumps[3].stopWatering();}
+void pump_end_alarm_1() {
+  pumps[0].stopWatering();
+}
+void pump_end_alarm_2() {
+  pumps[1].stopWatering();
+}
+void pump_end_alarm_3() {
+  pumps[2].stopWatering();
+}
+void pump_end_alarm_4() {
+  pumps[3].stopWatering();
+}
 
 
 // Menu variables
@@ -200,9 +288,9 @@ Menu mm();
 Menu sm("Settings");
 MenuItem pm_stat("Status", &on_click_s);
 Menu pm_set("Settings");
-MenuItem pm_set_t("Toggle", &on_click_t);
+MenuItem pm_set_to("Toggle", &on_click_to);
 MenuItem pm_set_d("Duration", &on_click_d);
-MenuItem pm_set_f("Frequency", &on_click_f);
+MenuItem pm_set_ti("Time", &on_click_ti);
 
 
 //Serial Handerler for inputs
@@ -211,28 +299,44 @@ void serialHandler() {
   char inChar;
   if ((inChar = Serial.read()) > 0) {
     oldTime = now();
+ 
     switch (inChar) {
       case 'w': // Previus item
+        if (TimeAdjustor::HMSselector==0){
         ms.prev();
+        }else{
+        TimeAdjustor::decreaseHMS();
+        }
         ms.display();
         break;
       case 's': // Next item
-        ms.next();
+        if(TimeAdjustor::HMSselector==0){
+        ms.next();}
+        else
+        {TimeAdjustor::increaseHMS();
+        }
         ms.display();
         break;
       case 'a': // Back presed
-        ms.back();
+        if(TimeAdjustor::HMSselector==0)
+        {ms.back();}
+        else
+        {TimeAdjustor::backHMS();}
         ms.display();
         break;
       case 'd': // Select presed
-        ms.select();
+        if(TimeAdjustor::HMSselector==0)
+          {ms.select();}
+          else
+          {TimeAdjustor::forwardsHMS();}
         ms.display();
         break;
       case '?':
       default:
         break;
+      
     }
-
+    Serial.println(pumps[currentPump].duration_h);
     //Sets the current pump
     String menuName = ms.get_current_menu()->get_name();
     if (menuName == "Pump 1") {
@@ -246,6 +350,8 @@ void serialHandler() {
     }
 
   }
+  
+
 }
 void setup() {
 
@@ -254,27 +360,12 @@ void setup() {
   setTime(8, 29, 0, 1, 1, 11);
   oldTime = now();
 
-
-
-  //Add pumps to the menu
+  //Add pumps to the array
   pumps.push_back(pm_1);
   pumps.push_back(pm_2);
   pumps.push_back(pm_3);
   pumps.push_back(pm_4);
-  //Add the settings to the pumps
-  pm_set.add_item(&pm_set_t);
-  pm_set.add_item(&pm_set_d);
-  pm_set.add_item(&pm_set_f);
-
-  for (int i = 0; i <= numPumps; i++) {
-    //Add settings and status to the pumps
-    ms.get_root_menu().add_menu(&pumps[i]);
-    pumps[i].add_item(&pm_stat);
-    pumps[i].add_menu(&pm_set);
-  }
-  ms.get_root_menu().add_menu(&sm);
-
-
+  
   //Create alarms for pumps
   pumps[0].alarmId = Alarm.alarmRepeat(HMTime(0, 0), &pump_alarm_1);
   pumps[1].alarmId = Alarm.alarmRepeat(HMTime(0, 0), &pump_alarm_2);
@@ -288,10 +379,32 @@ void setup() {
   pumps[3].alarmEndId = Alarm.timerOnce(0, &pump_end_alarm_4);
 
   //Disabling all alarms by default
-    for (int i = 0; i <= numPumps; i++) {
-      Alarm.disable(pumps[i].alarmId);
-      Alarm.disable(pumps[i].alarmEndId);
-    }
+  for (int i = 0; i <= numPumps; i++) {
+    Alarm.disable(pumps[i].alarmId);
+    Alarm.disable(pumps[i].alarmEndId);  
+  }
+
+
+/*  vector<Menu> menu_pumps;
+  menu_pumps.push_back(menu_pump_1);
+  menu_pumps.push_back(menu_pump_2);
+  menu_pumps.push_back(menu_pump_3);
+  menu_pumps.push_back(menu_pump_4);
+*/
+  
+  //Add the settings to the pumps
+  
+  pm_set.add_item(&pm_set_to);
+  pm_set.add_item(&pm_set_d);
+  pm_set.add_item(&pm_set_ti);
+
+  for (int i = 0; i <= numPumps; i++) {
+    //Add settings and status to the pumps
+    ms.get_root_menu().add_menu(&pumps[i]);
+    pumps[i].add_item(&pm_stat);
+    pumps[i].add_menu(&pm_set);
+  }
+  ms.get_root_menu().add_menu(&sm);
 
 
   //start displaying
