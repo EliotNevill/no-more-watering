@@ -93,23 +93,22 @@ time_t HMTime(int h, int m) {
 }
 
 //Pump
-class Pump : public Menu {
+class Pump  {
 
   public:
     const int pumpNumber;
     int duration_h;
-    int duration_m = 0;
-    int duration_s = 0;
-    int time_h = 0;
-    int time_m = 0;
-    int time_s = 0;
-    boolean isWatering = false;
+    int duration_m;
+    int duration_s;
+    int time_h;
+    int time_m;
+    int time_s;
+    bool isWatering = false;
     int alarmId, alarmEndId;
-    boolean _enabled = false;
-    Pump (const char* pName, int pNum)
-      : Menu(pName), pumpNumber(pNum) {
+    bool _enabled = false;
+    Pump ( int pNum)
+      :  pumpNumber(pNum) {
     }
-
     ~Pump(){
       Serial.println("DESTROYED");
     }
@@ -126,7 +125,7 @@ class Pump : public Menu {
         Alarm.enable(alarmId);
       }
     }
-    boolean enabled() const {
+    bool enabled() const {
       return _enabled;
     }
     void startWatering() {
@@ -135,15 +134,46 @@ class Pump : public Menu {
     void stopWatering() {
       isWatering = false;
     }
+    void saveState(){
+    int address = pumpNumber * 8;
+    write_consec(&address,duration_h);
+    write_consec(&address,duration_m);
+    write_consec(&address,duration_s);
+    write_consec(&address,time_h);
+    write_consec(&address,time_m);
+    write_consec(&address,time_s);
+    write_consec(&address,_enabled);
+    }
+    void readState(){
+    int address = pumpNumber * 8;
+    read_consec(&address,&duration_h);
+    read_consec(&address,&duration_m);
+    read_consec(&address,&duration_s);
+    read_consec(&address,&time_h);
+    read_consec(&address,&time_m);
+    read_consec(&address,&time_s);
+    int a;
+    read_consec(&address,&a);
+    _enabled = a==1?true:false;
+    }
+    
   private:
+  void write_consec(int* a, int v){
+    EEPROM.write(*a , v);
+    (*a)++;
+  }
+  void read_consec(int* a, int* v){
+   *v = EEPROM.read(*a);
+   (*a)++;
+  }
     unsigned long _wateringTime;
 };
 
 //Pump objects
-Pump pm_1("Pump 1", 1);
-Pump pm_2("Pump 2", 2);
-Pump pm_3("Pump 3", 3);
-Pump pm_4("Pump 4", 4);
+Pump pm_1(1);
+Pump pm_2(2);
+Pump pm_3(3);
+Pump pm_4(4);
 vector<Pump> pumps;
 
 
@@ -248,9 +278,12 @@ void on_click_d(MenuItem* p_menu_item) {
 }
 void on_click_ti(MenuItem* p_menu_item) {
   if (p_menu_item->get_name() == "Time") {
-    TimeAdjustor::setHMS(&pumps[currentPump].time_h , &pumps[currentPump].time_h , &pumps[currentPump].time_h);
+    TimeAdjustor::setHMS(&pumps[currentPump].time_h , &pumps[currentPump].time_m , &pumps[currentPump].time_s);
     TimeAdjustor::forwardsHMS();
   }
+}
+void on_click_sa(MenuItem* p_menu_item){
+  pumps[currentPump].saveState();
 }
 
 
@@ -288,12 +321,17 @@ void pump_end_alarm_4() {
 // Menu variables
 MenuSystem ms(my_renderer);
 Menu mm();
+Menu pump_menu_1("Pump 1");
+Menu pump_menu_2("Pump 2");
+Menu pump_menu_3("Pump 3");
+Menu pump_menu_4("Pump 4");
 Menu sm("Settings");
 MenuItem pm_stat("Status", &on_click_s);
 Menu pm_set("Settings");
 MenuItem pm_set_to("Toggle", &on_click_to);
 MenuItem pm_set_d("Duration", &on_click_d);
 MenuItem pm_set_ti("Time", &on_click_ti);
+MenuItem pm_set_sa("Save", &on_click_sa);
 
 
 //Serial Handerler for inputs
@@ -348,7 +386,7 @@ void serialHandler() {
         break;
 
     }
-    Serial.println(pumps[currentPump].duration_h);
+    Serial.println(TimeAdjustor::HMSselector);
     //Sets the current pump
     String menuName = ms.get_current_menu()->get_name();
     if (menuName == "Pump 1") {
@@ -365,30 +403,46 @@ void serialHandler() {
 
 
 }
+
+void addSubMenus(Menu* m){
+    ms.get_root_menu().add_menu(m);
+    m->add_item(&pm_stat);
+    m->add_menu(&pm_set);
+}
 void setup() {
 
   Serial.begin(9600);
+  
   lcd.begin(16, 2);
   setTime(8, 29, 0, 1, 1, 11);
   oldTime = now();
+
+  
+  
 
   //Add pumps to the array
   pumps.push_back(pm_1);
   pumps.push_back(pm_2);
   pumps.push_back(pm_3);
   pumps.push_back(pm_4);
+  
+  //Read pump values from memory
+  for (int i = 0; i <= numPumps; i++) {
+  pumps[i].readState();
+  }
 
+  
   //Create alarms for pumps
-  pumps[0].alarmId = Alarm.alarmRepeat(HMTime(0, 0), &pump_alarm_1);
-  pumps[1].alarmId = Alarm.alarmRepeat(HMTime(0, 0), &pump_alarm_2);
-  pumps[2].alarmId = Alarm.alarmRepeat(HMTime(0, 0), &pump_alarm_3);
-  pumps[3].alarmId = Alarm.alarmRepeat(HMTime(0, 0), &pump_alarm_4);
+  pumps[0].alarmId = Alarm.alarmRepeat(HMTime(pumps[0].time_h, pumps[0].time_m), &pump_alarm_1);
+  pumps[1].alarmId = Alarm.alarmRepeat(HMTime(pumps[1].time_h, pumps[1].time_m), &pump_alarm_2);
+  pumps[2].alarmId = Alarm.alarmRepeat(HMTime(pumps[2].time_h, pumps[2].time_m), &pump_alarm_3);
+  pumps[3].alarmId = Alarm.alarmRepeat(HMTime(pumps[3].time_h, pumps[3].time_m), &pump_alarm_4);
 
   //The alarm to stop the water flowing
-  pumps[0].alarmEndId = Alarm.timerOnce(0, &pump_end_alarm_1);
-  pumps[1].alarmEndId = Alarm.timerOnce(0, &pump_end_alarm_2);
-  pumps[2].alarmEndId = Alarm.timerOnce(0, &pump_end_alarm_3);
-  pumps[3].alarmEndId = Alarm.timerOnce(0, &pump_end_alarm_4);
+  pumps[0].alarmEndId = Alarm.timerOnce(HMTime(pumps[0].duration_h, pumps[0].duration_m), &pump_end_alarm_1);
+  pumps[1].alarmEndId = Alarm.timerOnce(HMTime(pumps[1].duration_h, pumps[1].duration_m), &pump_end_alarm_2);
+  pumps[2].alarmEndId = Alarm.timerOnce(HMTime(pumps[2].duration_h, pumps[2].duration_m), &pump_end_alarm_3);
+  pumps[3].alarmEndId = Alarm.timerOnce(HMTime(pumps[3].duration_h, pumps[3].duration_m), &pump_end_alarm_4);
 
   //Disabling all alarms by default
   for (int i = 0; i <= numPumps; i++) {
@@ -396,39 +450,32 @@ void setup() {
     Alarm.disable(pumps[i].alarmEndId);
   }
 
-
-  /*  vector<Menu> menu_pumps;
-    menu_pumps.push_back(menu_pump_1);
-    menu_pumps.push_back(menu_pump_2);
-    menu_pumps.push_back(menu_pump_3);
-    menu_pumps.push_back(menu_pump_4);
-  */
-
   //Add the settings to the pumps
-
   pm_set.add_item(&pm_set_to);
   pm_set.add_item(&pm_set_d);
   pm_set.add_item(&pm_set_ti);
-
-  for (int i = 0; i <= numPumps; i++) {
-    //Add settings and status to the pumps
-    ms.get_root_menu().add_menu(&pumps[i]);
-    pumps[i].add_item(&pm_stat);
-    pumps[i].add_menu(&pm_set);
-  }
+  pm_set.add_item(&pm_set_sa);
+  addSubMenus(&pump_menu_1);
+  addSubMenus(&pump_menu_2);
+  addSubMenus(&pump_menu_3);
+  addSubMenus(&pump_menu_4);
   ms.get_root_menu().add_menu(&sm);
-
 
   //start displaying
   ms.display();
 
 
 }
+int freeRam () 
+{
+  extern int __heap_start, *__brkval; 
+  int v; 
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
+}
 
 void loop() {
   serialHandler();
   ms.display();
-  Serial.print(ms.get_current_menu()->get_name());
   Alarm.delay(50);
 
 
