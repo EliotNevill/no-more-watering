@@ -22,7 +22,7 @@ int currentPump;
 long oldTime;
 LiquidCrystal lcd(6, 7, 5, 4, 3, 2);
 
-
+//This class is for adjusting time
 class TimeAdjustor {
   public:
     static int HMSselector;
@@ -94,7 +94,6 @@ time_t HMTime(int h, int m) {
 
 //Pump
 class Pump  {
-
   public:
     const int pumpNumber;
     int duration_h;
@@ -195,7 +194,6 @@ class MyRenderer : public MenuComponentRenderer
         print_time(hour(), minute(), 5, 0);
 
       } else {
-
         if (strlen(menu.get_name()) == 0 )
           lcd.print("Main Menu");
         else
@@ -215,7 +213,8 @@ class MyRenderer : public MenuComponentRenderer
       cursorHighlight_x = x;
       cursorHighlight_y = y;
     }
-
+    
+    //PN contributed to this function
     void print_time(int h, int m, int x, int y) const {
       lcd.setCursor(x, y);
       if (h < 10)
@@ -346,7 +345,7 @@ void serialHandler() {
         if (TimeAdjustor::HMSselector == 0) {
           ms.prev();
         } else {
-          TimeAdjustor::decreaseHMS();
+          TimeAdjustor::increaseHMS();
         }
         ms.display();
         break;
@@ -355,7 +354,7 @@ void serialHandler() {
           ms.next();
         }
         else
-        { TimeAdjustor::increaseHMS();
+        { TimeAdjustor::decreaseHMS();
         }
         ms.display();
         break;
