@@ -63,8 +63,8 @@ class TimeAdjustor {
 
 
   private:
-    static int mod(int a, int b){      
-      return (a%b+b)%b; 
+    static int mod(int a, int b) {
+      return (a % b + b) % b;
     }
     static void timeFixer() {
       if (*seconds > 59 || *seconds < 0) {
@@ -93,7 +93,7 @@ time_t HMTime(int h, int m) {
 }
 
 //Pump
-class Pump : public Menu{
+class Pump : public Menu {
 
   public:
     const int pumpNumber;
@@ -110,6 +110,9 @@ class Pump : public Menu{
       : Menu(pName), pumpNumber(pNum) {
     }
 
+    ~Pump(){
+      Serial.println("DESTROYED");
+    }
     void setWateringTime(int h, int m) {
       Alarm.write(alarmId , HMTime(h, m) );
     }
@@ -244,11 +247,11 @@ void on_click_d(MenuItem* p_menu_item) {
   }
 }
 void on_click_ti(MenuItem* p_menu_item) {
-    if (p_menu_item->get_name() == "Time") {
+  if (p_menu_item->get_name() == "Time") {
     TimeAdjustor::setHMS(&pumps[currentPump].time_h , &pumps[currentPump].time_h , &pumps[currentPump].time_h);
     TimeAdjustor::forwardsHMS();
   }
-  }
+}
 
 
 //Pump alarm callback functions
@@ -299,42 +302,51 @@ void serialHandler() {
   char inChar;
   if ((inChar = Serial.read()) > 0) {
     oldTime = now();
- 
+
     switch (inChar) {
       case 'w': // Previus item
-        if (TimeAdjustor::HMSselector==0){
-        ms.prev();
-        }else{
-        TimeAdjustor::decreaseHMS();
+        if (TimeAdjustor::HMSselector == 0) {
+          ms.prev();
+        } else {
+          TimeAdjustor::decreaseHMS();
         }
         ms.display();
         break;
       case 's': // Next item
-        if(TimeAdjustor::HMSselector==0){
-        ms.next();}
+        if (TimeAdjustor::HMSselector == 0) {
+          ms.next();
+        }
         else
-        {TimeAdjustor::increaseHMS();
+        { TimeAdjustor::increaseHMS();
         }
         ms.display();
         break;
       case 'a': // Back presed
-        if(TimeAdjustor::HMSselector==0)
-        {ms.back();}
+        if (TimeAdjustor::HMSselector == 0)
+        {
+          ms.back();
+        }
         else
-        {TimeAdjustor::backHMS();}
+        {
+          TimeAdjustor::backHMS();
+        }
         ms.display();
         break;
       case 'd': // Select presed
-        if(TimeAdjustor::HMSselector==0)
-          {ms.select();}
-          else
-          {TimeAdjustor::forwardsHMS();}
+        if (TimeAdjustor::HMSselector == 0)
+        {
+          ms.select();
+        }
+        else
+        {
+          TimeAdjustor::forwardsHMS();
+        }
         ms.display();
         break;
       case '?':
       default:
         break;
-      
+
     }
     Serial.println(pumps[currentPump].duration_h);
     //Sets the current pump
@@ -350,7 +362,7 @@ void serialHandler() {
     }
 
   }
-  
+
 
 }
 void setup() {
@@ -365,7 +377,7 @@ void setup() {
   pumps.push_back(pm_2);
   pumps.push_back(pm_3);
   pumps.push_back(pm_4);
-  
+
   //Create alarms for pumps
   pumps[0].alarmId = Alarm.alarmRepeat(HMTime(0, 0), &pump_alarm_1);
   pumps[1].alarmId = Alarm.alarmRepeat(HMTime(0, 0), &pump_alarm_2);
@@ -381,19 +393,19 @@ void setup() {
   //Disabling all alarms by default
   for (int i = 0; i <= numPumps; i++) {
     Alarm.disable(pumps[i].alarmId);
-    Alarm.disable(pumps[i].alarmEndId);  
+    Alarm.disable(pumps[i].alarmEndId);
   }
 
 
-/*  vector<Menu> menu_pumps;
-  menu_pumps.push_back(menu_pump_1);
-  menu_pumps.push_back(menu_pump_2);
-  menu_pumps.push_back(menu_pump_3);
-  menu_pumps.push_back(menu_pump_4);
-*/
-  
+  /*  vector<Menu> menu_pumps;
+    menu_pumps.push_back(menu_pump_1);
+    menu_pumps.push_back(menu_pump_2);
+    menu_pumps.push_back(menu_pump_3);
+    menu_pumps.push_back(menu_pump_4);
+  */
+
   //Add the settings to the pumps
-  
+
   pm_set.add_item(&pm_set_to);
   pm_set.add_item(&pm_set_d);
   pm_set.add_item(&pm_set_ti);
@@ -416,6 +428,7 @@ void setup() {
 void loop() {
   serialHandler();
   ms.display();
+  Serial.print(ms.get_current_menu()->get_name());
   Alarm.delay(50);
 
 
