@@ -21,6 +21,9 @@ const int numPumps = 4;
 int currentPump;
 long oldTime;
 int current_h, current_m, current_s;
+const  int default_day = 5;
+const  int default_month = 7;
+const int default_year = 46;
 LiquidCrystal lcd(6, 7, 5, 4, 3, 2);
 byte offChar[8] = {
 B01110,
@@ -117,10 +120,15 @@ int* TimeAdjustor::hours;
 int* TimeAdjustor::minutes;
 int* TimeAdjustor::seconds;
 
-time_t HMTime(int h, int m) {
-  time_t hmtime ;
-  hmtime = h  * 3600 +  m * 60 ;
-  return hmtime;
+time_t HMSTime(int h, int m, int s) {
+TimeElements tm;
+tm.Second =  s;
+tm.Minute = m; 
+tm.Hour   = h;  
+tm.Day    = default_day;      
+tm.Month  = default_month;  
+tm.Year   = default_year;   
+  return makeTime(tm);
 }
   void write_consec(int* a, int v){
     EEPROM.write(*a , v);
@@ -141,7 +149,7 @@ void loadSettings(){
   read_consec(&address,&current_h);
   read_consec(&address,&current_m);
   read_consec(&address,&current_s);
-  setTime(HMTime(current_h, current_m));
+  setTime(HMSTime(current_h, current_m, current_s));
 }
   
 //Pump
@@ -164,7 +172,7 @@ class Pump  {
       Serial.println("DESTROYED");
     }
     void setWateringTime(int h, int m) {
-      Alarm.write(alarmId , HMTime(h, m) );
+      Alarm.write(alarmId , HMSTime(h, m, 0) );
     }
     void toggle() {
       if (_enabled) {
@@ -422,7 +430,7 @@ void on_click_set_ct(MenuItem* p_menu_item){
   }
 }
 void on_click_set_sa(MenuItem* p_menu_item){
-  setTime(HMTime(current_h, current_m));
+  setTime(HMSTime(current_h, current_m, current_s));
   saveSettings();
 }
 
@@ -430,19 +438,19 @@ void on_click_set_sa(MenuItem* p_menu_item){
 //Pump alarm callback functions
 void pump_alarm_1() {
   pumps[0].startWatering();
-  Alarm.write(pumps[0].alarmEndId, HMTime(pumps[0].duration_h, pumps[0].duration_m));
+  Alarm.write(pumps[0].alarmEndId, HMSTime(pumps[0].duration_h, pumps[0].duration_m, pumps[0].duration_s));
 }
 void pump_alarm_2() {
   pumps[1].startWatering();
-  Alarm.write(pumps[1].alarmEndId, HMTime(pumps[1].duration_h, pumps[1].duration_m));
+  Alarm.write(pumps[1].alarmEndId, HMSTime(pumps[1].duration_h, pumps[1].duration_m, pumps[1].duration_s));
 }
 void pump_alarm_3() {
   pumps[2].startWatering();
-  Alarm.write(pumps[2].alarmEndId, HMTime(pumps[2].duration_h, pumps[2].duration_m));
+  Alarm.write(pumps[2].alarmEndId, HMSTime(pumps[2].duration_h, pumps[2].duration_m, pumps[2].duration_s));
 }
 void pump_alarm_4() {
   pumps[3].startWatering();
-  Alarm.write(pumps[3].alarmEndId, HMTime(pumps[3].duration_h, pumps[3].duration_m));
+  Alarm.write(pumps[3].alarmEndId, HMSTime(pumps[3].duration_h, pumps[3].duration_m, pumps[3].duration_s));
 }
 void pump_end_alarm_1() {
   pumps[0].stopWatering();
@@ -555,17 +563,16 @@ void addSubMenus(Menu* m){
 void setup() {
 
   Serial.begin(9600);
-  
   lcd.begin(16, 2);
-  loadSettings();
-  current_h = hour();
-  current_m = minute();
-  current_s = second();
+
+
   lcd.createChar(0,offChar);
     lcd.createChar(1,onChar1);
       lcd.createChar(2,onChar2);
-  setTime(8, 29, 0, 1, 1, 11);
-
+  loadSettings(); 
+  current_h = hour();
+  current_m = minute();
+  current_s = second();
   oldTime = now();
 
   
@@ -584,16 +591,16 @@ void setup() {
 
   
   //Create alarms for pumps
-  pumps[0].alarmId = Alarm.alarmRepeat(HMTime(pumps[0].time_h, pumps[0].time_m), &pump_alarm_1);
-  pumps[1].alarmId = Alarm.alarmRepeat(HMTime(pumps[1].time_h, pumps[1].time_m), &pump_alarm_2);
-  pumps[2].alarmId = Alarm.alarmRepeat(HMTime(pumps[2].time_h, pumps[2].time_m), &pump_alarm_3);
-  pumps[3].alarmId = Alarm.alarmRepeat(HMTime(pumps[3].time_h, pumps[3].time_m), &pump_alarm_4);
+  pumps[0].alarmId = Alarm.alarmRepeat(HMSTime(pumps[0].time_h, pumps[0].time_m, pumps[0].time_s), &pump_alarm_1);
+  pumps[1].alarmId = Alarm.alarmRepeat(HMSTime(pumps[1].time_h, pumps[1].time_m, pumps[1].time_s), &pump_alarm_2);
+  pumps[2].alarmId = Alarm.alarmRepeat(HMSTime(pumps[2].time_h, pumps[2].time_m, pumps[2].time_s), &pump_alarm_3);
+  pumps[3].alarmId = Alarm.alarmRepeat(HMSTime(pumps[3].time_h, pumps[3].time_m, pumps[3].time_s), &pump_alarm_4);
 
   //The alarm to stop the water flowing
-  pumps[0].alarmEndId = Alarm.timerOnce(HMTime(pumps[0].duration_h, pumps[0].duration_m), &pump_end_alarm_1);
-  pumps[1].alarmEndId = Alarm.timerOnce(HMTime(pumps[1].duration_h, pumps[1].duration_m), &pump_end_alarm_2);
-  pumps[2].alarmEndId = Alarm.timerOnce(HMTime(pumps[2].duration_h, pumps[2].duration_m), &pump_end_alarm_3);
-  pumps[3].alarmEndId = Alarm.timerOnce(HMTime(pumps[3].duration_h, pumps[3].duration_m), &pump_end_alarm_4);
+  pumps[0].alarmEndId = Alarm.timerOnce(HMSTime(pumps[0].duration_h, pumps[0].duration_m, pumps[0].duration_s), &pump_end_alarm_1);
+  pumps[1].alarmEndId = Alarm.timerOnce(HMSTime(pumps[1].duration_h, pumps[1].duration_m, pumps[1].duration_s), &pump_end_alarm_2);
+  pumps[2].alarmEndId = Alarm.timerOnce(HMSTime(pumps[2].duration_h, pumps[2].duration_m, pumps[2].duration_s), &pump_end_alarm_3);
+  pumps[3].alarmEndId = Alarm.timerOnce(HMSTime(pumps[3].duration_h, pumps[3].duration_m, pumps[3].duration_s), &pump_end_alarm_4);
 
   //Disabling all alarms by default
   for (int i = 0; i <= numPumps; i++) {
