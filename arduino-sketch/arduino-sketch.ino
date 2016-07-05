@@ -205,7 +205,6 @@ Pump pm_3(3);
 Pump pm_4(4);
 vector<Pump> pumps;
 
-int b;
 
 // Renderer
 class MyRenderer : public MenuComponentRenderer
