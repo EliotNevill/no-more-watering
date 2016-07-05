@@ -21,6 +21,36 @@ const int numPumps = 4;
 int currentPump;
 long oldTime;
 LiquidCrystal lcd(6, 7, 5, 4, 3, 2);
+byte offChar[8] = {
+B01110,
+B00100,
+B11111,
+B11111,
+B00011,
+B00000,
+B00000,
+B00000
+};byte onChar1[8] = {
+B01110,
+B00100,
+B11111,
+B11111,
+B00011,
+B00010,
+B00001,
+B00010
+};
+byte onChar2[8] = {
+B01110,
+B00100,
+B11111,
+B11111,
+B00011,
+B00001,
+B00010,
+B00001
+};
+
 
 //This class is for adjusting time
 class TimeAdjustor {
@@ -191,9 +221,13 @@ class MyRenderer : public MenuComponentRenderer
 
         lcd.setCursor(0, 0);
         lcd.print("NMW");
-        print_time(hour(), minute(), 11, 0);
+        print_time(hour(), minute(), 5, 0);
+        lcd.setCursor(0,1);
+        lcd.write(get_pump_glyph(true));
+
+        /*
         for( b = 0; b < 105; b++){
-            lcd.setCursor(b,0);
+            lcd.setCursor(b,1);
         for (int i = 0; i <= numPumps; i++) {
           
           
@@ -206,13 +240,13 @@ class MyRenderer : public MenuComponentRenderer
         print_time_no_pos(pumps[i].duration_h, pumps[i].duration_m);
         lcd.print(", Time=");
         print_time_no_pos(pumps[i].time_h, pumps[i].time_m);
-        Alarm.delay(150);
+        Alarm.delay(500);
         
         
   }
         }
         
-        
+        */
 
       } else {
         if (strlen(menu.get_name()) == 0 )
@@ -226,7 +260,25 @@ class MyRenderer : public MenuComponentRenderer
 
 
     }
-
+    byte get_pump_glyph(bool state) const{
+      if(state){
+        if( t > 10){
+        flickr = !flickr;
+        t = 0;
+        }else{
+          t++;
+        }
+        
+        return (flickr) ? byte(2): byte (1);
+        
+        
+        
+        
+      }else{
+        return byte(0);
+        
+      }
+    }
     void sleep(bool sleep) {
       _sleep = sleep;
     }
@@ -291,12 +343,15 @@ class MyRenderer : public MenuComponentRenderer
   private:
     bool _sleep = false;
     int cursorHighlight_x, cursorHighlight_y;
+   mutable bool flickr = false;
+   mutable int t = 0;
 };
 MyRenderer my_renderer;
 
 // Menu callback functions
 void on_click_s(MenuItem* p_menu_item) {
-  if(pumps[currentPump].enabled){
+  Serial.println(p_menu_item->has_focus()?"Yes":"No");
+  /*if(pumps[currentPump].enabled()){
    lcd.print("d=");
    print_time_no_pos(pumps[currentPump].duration_h, pumps[currentPump].duration_m);
    lcd.print(" T=");
@@ -304,6 +359,8 @@ void on_click_s(MenuItem* p_menu_item) {
   }else{ 
    lcd.print("OFF");
   }
+  */
+}
 void on_click_to(MenuItem* p_menu_item) {
   if (p_menu_item->get_name() == "Toggle") {
     pumps[currentPump].toggle();
@@ -456,6 +513,9 @@ void setup() {
   Serial.begin(9600);
   
   lcd.begin(16, 2);
+  lcd.createChar(0,offChar);
+    lcd.createChar(1,onChar1);
+      lcd.createChar(2,onChar2);
   setTime(8, 29, 0, 1, 1, 11);
   oldTime = now();
 
