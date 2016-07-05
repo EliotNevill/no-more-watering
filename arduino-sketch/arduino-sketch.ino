@@ -54,6 +54,16 @@ B00001,
 B00010,
 B00001
 };
+byte crossChar[8] = {
+  B10001,
+  B10001,
+  B01010,
+  B00100,
+  B00100,
+  B01010,
+  B10001,
+  B10001,
+};
 
 
 //This class is for adjusting time
@@ -246,7 +256,7 @@ class MyRenderer : public MenuComponentRenderer
         print_time(hour(), minute(), 4, 0);
         lcd.setCursor(9,0);
         for(int i; i<4; i++){
-        lcd.write(get_pump_glyph(pumps[i].isWatering));
+        lcd.write(get_pump_glyph(pumps[i].isWatering, pumps[i].enabled()));
         }
 
         if(scrollTim > 30){
@@ -281,7 +291,7 @@ class MyRenderer : public MenuComponentRenderer
 
 
     }
-    byte get_pump_glyph(bool state) const{
+    byte get_pump_glyph(bool state, bool isOn) const{
       if(state){
         if( t > 10){
         flickr = !flickr;
@@ -295,8 +305,14 @@ class MyRenderer : public MenuComponentRenderer
         
         
         
-      }else{
+      }else{if(isOn){
+      
         return byte(0);
+
+      }else{
+        return byte(3);
+      }
+      
         
       }
     }
@@ -569,6 +585,7 @@ void setup() {
   lcd.createChar(0,offChar);
     lcd.createChar(1,onChar1);
       lcd.createChar(2,onChar2);
+      lcd.createChar(3,crossChar);
   loadSettings(); 
   current_h = hour();
   current_m = minute();
