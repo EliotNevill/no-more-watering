@@ -20,6 +20,7 @@ typedef void (*Pointer)();
 const int numPumps = 4;
 int currentPump;
 long oldTime;
+int current_h, current_m, current_s;
 LiquidCrystal lcd(6, 7, 5, 4, 3, 2);
 byte offChar[8] = {
 B01110,
@@ -121,7 +122,28 @@ time_t HMTime(int h, int m) {
   hmtime = h  * 3600 +  m * 60 ;
   return hmtime;
 }
-
+  void write_consec(int* a, int v){
+    EEPROM.write(*a , v);
+    (*a)++;
+  }
+  void read_consec(int* a, int* v){
+   *v = EEPROM.read(*a);
+   (*a)++;
+  }
+void saveSettings(){
+  int address = 0;
+  write_consec(&address, hour());
+  write_consec(&address, minute());
+  write_consec(&address, second());
+}
+void loadSettings(){
+  int address = 0;
+  read_consec(&address,&current_h);
+  read_consec(&address,&current_m);
+  read_consec(&address,&current_s);
+  setTime(HMTime(current_h, current_m));
+}
+  
 //Pump
 class Pump  {
   public:
@@ -187,14 +209,7 @@ class Pump  {
     }
     
   private:
-  void write_consec(int* a, int v){
-    EEPROM.write(*a , v);
-    (*a)++;
-  }
-  void read_consec(int* a, int* v){
-   *v = EEPROM.read(*a);
-   (*a)++;
-  }
+
     unsigned long _wateringTime;
 };
 
@@ -289,6 +304,7 @@ class MyRenderer : public MenuComponentRenderer
       _sleep = sleep;
     }
 
+
     //PN contributed to this function
     void print_time(int h, int m, int x, int y) const {
       lcd.setCursor(x, y);
@@ -326,6 +342,8 @@ class MyRenderer : public MenuComponentRenderer
         lcd.setCursor(10+(2*TimeAdjustor::HMSselector),1);
       } else if (menuItemName == "Time") {
         print_time(pumps[currentPump].time_h, pumps[currentPump].time_m, 11, 1);
+      }else if(menuItemName == "Clock Time"){
+        print_time(current_h,current_m,11,1);
       }
 
     }
@@ -346,15 +364,19 @@ class MyRenderer : public MenuComponentRenderer
     }
   private:
     bool _sleep = false;
+
    mutable bool flickr = false;
    mutable int t = 0;
    mutable int scrollTim;
    mutable int p = 1;
+
 };
+
 MyRenderer my_renderer;
 
 // Menu callback functions
 void on_click_s(MenuItem* p_menu_item) {
+
   Serial.println(p_menu_item->has_focus()?"Yes":"No");
   /*if(pumps[currentPump].enabled()){
    lcd.print("d=");
@@ -366,9 +388,11 @@ void on_click_s(MenuItem* p_menu_item) {
   }
   */
 }
+
 void on_click_to(MenuItem* p_menu_item) {
   if (p_menu_item->get_name() == "Toggle") {
     pumps[currentPump].toggle();
+    pumps[currentPump].saveState();
   }
 }
 void on_click_d(MenuItem* p_menu_item) {
@@ -388,6 +412,22 @@ void on_click_sa(MenuItem* p_menu_item){
 
   
    pumps[currentPump].saveState();
+}
+void on_click_lo(MenuItem* p_menu_item){
+  pumps[currentPump].readState();
+}
+void on_click_set_ct(MenuItem* p_menu_item){
+  if (p_menu_item->get_name() == "Clock Time") {
+  current_h = hour();
+  current_m = minute();
+  current_s = second();
+    TimeAdjustor::setHMS(&current_h , &current_m, &current_s);
+    TimeAdjustor::forwardsHMS();
+  }
+}
+void on_click_set_sa(MenuItem* p_menu_item){
+  setTime(HMTime(current_h, current_m));
+  saveSettings();
 }
 
 
@@ -430,12 +470,15 @@ Menu pump_menu_2("Pump 2");
 Menu pump_menu_3("Pump 3");
 Menu pump_menu_4("Pump 4");
 Menu sm("Settings");
+MenuItem sm_t("Clock Time", &on_click_set_ct);
+MenuItem sm_sa("Save", &on_click_set_sa);
 MenuItem pm_stat("Status", &on_click_s);
 Menu pm_set("Settings");
 MenuItem pm_set_to("Toggle", &on_click_to);
 MenuItem pm_set_d("Duration", &on_click_d);
 MenuItem pm_set_ti("Time", &on_click_ti);
 MenuItem pm_set_sa("Save", &on_click_sa);
+MenuItem pm_set_lo("Load", &on_click_lo);
 
 
 //Serial Handerler for inputs
@@ -518,10 +561,15 @@ void setup() {
   Serial.begin(9600);
   
   lcd.begin(16, 2);
+  loadSettings();
+  current_h = hour();
+  current_m = minute();
+  current_s = second();
   lcd.createChar(0,offChar);
     lcd.createChar(1,onChar1);
       lcd.createChar(2,onChar2);
   setTime(8, 29, 0, 1, 1, 11);
+
   oldTime = now();
 
   
@@ -558,10 +606,13 @@ void setup() {
   }
 
   //Add the settings to the pumps
+  sm.add_item(&sm_t);
+  sm.add_item(&sm_sa);
   pm_set.add_item(&pm_set_to);
   pm_set.add_item(&pm_set_d);
   pm_set.add_item(&pm_set_ti);
   pm_set.add_item(&pm_set_sa);
+  pm_set.add_item(&pm_set_lo);
   addSubMenus(&pump_menu_1);
   addSubMenus(&pump_menu_2);
   addSubMenus(&pump_menu_3);
