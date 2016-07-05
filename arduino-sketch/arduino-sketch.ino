@@ -15,7 +15,7 @@
 
 using namespace std;
 typedef void (*Pointer)();
-//I am a bit of a pleb
+
 //LCD init
 const int numPumps = 4;
 int currentPump;
@@ -175,6 +175,7 @@ Pump pm_3(3);
 Pump pm_4(4);
 vector<Pump> pumps;
 
+int b;
 
 // Renderer
 class MyRenderer : public MenuComponentRenderer
@@ -188,10 +189,30 @@ class MyRenderer : public MenuComponentRenderer
 
       if (_sleep) {
 
-        lcd.setCursor(0, 1);
-        lcd.print("Sleeping");
+        lcd.setCursor(0, 0);
         lcd.print("NMW");
-        print_time(hour(), minute(), 5, 0);
+        print_time(hour(), minute(), 11, 0);
+        for( b = 0; b < 105; b++){
+            lcd.setCursor(b,0);
+        for (int i = 0; i <= numPumps; i++) {
+          
+          
+          
+        lcd.print("    P");
+        lcd.print(i);
+        lcd.print('=');  
+        lcd.print(pumps[i].enabled()? "ON" : "OFF");
+        lcd.print(", DUR=");
+        print_time_no_pos(pumps[i].duration_h, pumps[i].duration_m);
+        lcd.print(", Time=");
+        print_time_no_pos(pumps[i].time_h, pumps[i].time_m);
+        Alarm.delay(150);
+        
+        
+  }
+        }
+        
+        
 
       } else {
         if (strlen(menu.get_name()) == 0 )
@@ -225,6 +246,17 @@ class MyRenderer : public MenuComponentRenderer
         lcd.print('0');
       lcd.print(m);
     }
+     void print_time_no_pos(int h, int m) const {
+      if (h < 10)
+        lcd.print('0');
+      lcd.print(h);
+      lcd.print(':');
+      if (m < 10)
+        lcd.print('0');
+      lcd.print(m);
+    }
+
+    
 
 
     virtual void render_menu_item(MenuItem const & menu_item) const
@@ -263,7 +295,15 @@ class MyRenderer : public MenuComponentRenderer
 MyRenderer my_renderer;
 
 // Menu callback functions
-void on_click_s(MenuItem* p_menu_item) {}
+void on_click_s(MenuItem* p_menu_item) {
+  if(pumps[currentPump].enabled){
+   lcd.print("d=");
+   print_time_no_pos(pumps[currentPump].duration_h, pumps[currentPump].duration_m);
+   lcd.print(" T=");
+   print_time_no_pos(pumps[currentPump].time_h, pumps[currentPump].time_m);
+  }else{ 
+   lcd.print("OFF");
+  }
 void on_click_to(MenuItem* p_menu_item) {
   if (p_menu_item->get_name() == "Toggle") {
     pumps[currentPump].toggle();
@@ -282,7 +322,10 @@ void on_click_ti(MenuItem* p_menu_item) {
   }
 }
 void on_click_sa(MenuItem* p_menu_item){
-  pumps[currentPump].saveState();
+
+
+  
+   pumps[currentPump].saveState();
 }
 
 
