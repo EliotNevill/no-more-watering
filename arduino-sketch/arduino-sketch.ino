@@ -229,10 +229,10 @@ class MyRenderer : public MenuComponentRenderer
     virtual void render(Menu const & menu) const
     {
       lcd.clear();
+      lcd.noCursor();
       lcd.setCursor(0, 0);
 
       if (_sleep) {
-
         lcd.setCursor(0, 0);
         lcd.print("NMW");
         print_time(hour(), minute(), 4, 0);
@@ -241,8 +241,6 @@ class MyRenderer : public MenuComponentRenderer
         lcd.write(get_pump_glyph(pumps[i].isWatering));
         }
 
-       
-        
         if(scrollTim > 30){
           p++;
           scrollTim=0;
@@ -250,8 +248,7 @@ class MyRenderer : public MenuComponentRenderer
         if(p > 4){
           p = 1;
         }
-         
-          
+ 
         lcd.setCursor(14,0);
         lcd.print("P");
         lcd.print(p);
@@ -261,14 +258,9 @@ class MyRenderer : public MenuComponentRenderer
         lcd.print(" T=");
         print_time_no_pos(pumps[p].time_h, pumps[p].time_m);
         scrollTim++;
-        
         lcd.cursor();
         lcd.setCursor(8 + p,0);
         
-    
-        
-        
-
       } else {
         if (strlen(menu.get_name()) == 0 )
           lcd.print("Main Menu");
@@ -339,11 +331,18 @@ class MyRenderer : public MenuComponentRenderer
       } else if (menuItemName == "Duration") {
         print_time(pumps[currentPump].duration_h, pumps[currentPump].duration_m, 11, 1);
         lcd.cursor();
-        lcd.setCursor(10+(2*TimeAdjustor::HMSselector),1);
+        if(TimeAdjustor::HMSselector != 0)
+        lcd.setCursor(12+(3*(TimeAdjustor::HMSselector-1)),1);
       } else if (menuItemName == "Time") {
         print_time(pumps[currentPump].time_h, pumps[currentPump].time_m, 11, 1);
+        lcd.cursor();
+        if(TimeAdjustor::HMSselector != 0)
+        lcd.setCursor(12+(3*(TimeAdjustor::HMSselector-1)),1);
       }else if(menuItemName == "Clock Time"){
         print_time(current_h,current_m,11,1);
+        lcd.cursor();
+        if(TimeAdjustor::HMSselector != 0)
+        lcd.setCursor(12+(3*(TimeAdjustor::HMSselector-1)),1);
       }
 
     }
@@ -408,9 +407,6 @@ void on_click_ti(MenuItem* p_menu_item) {
   }
 }
 void on_click_sa(MenuItem* p_menu_item){
-
-
-  
    pumps[currentPump].saveState();
 }
 void on_click_lo(MenuItem* p_menu_item){
