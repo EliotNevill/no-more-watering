@@ -21,6 +21,7 @@ const int numPumps = 4;
 int currentPump;
 long oldTime;
 int current_h, current_m, current_s;
+int currentStatus =0;
 const  int default_day = 5;
 const  int default_month = 7;
 const int default_year = 46;
@@ -280,7 +281,19 @@ class MyRenderer : public MenuComponentRenderer
         lcd.cursor();
         lcd.setCursor(9 + p,0);
         
-      } else {
+      }else if(currentStatus != 0){
+      //
+      //
+      //Enter Stats screen here
+      //currentStatus is the current pump number being displayed i.e. 1,2,3,4
+      //
+      //
+      //
+
+
+
+        
+      }else {
         if (strlen(menu.get_name()) == 0 )
           lcd.print("Main Menu");
         else
@@ -345,6 +358,7 @@ class MyRenderer : public MenuComponentRenderer
 
     virtual void render_menu_item(MenuItem const & menu_item) const
     {
+       Serial.println(menu_item.has_focus()?"Yes":"No");
       String menuItemName = menu_item.get_name();
       lcd.print(menuItemName);
       if (menuItemName == "Toggle") {
@@ -397,17 +411,11 @@ MyRenderer my_renderer;
 
 // Menu callback functions
 void on_click_s(MenuItem* p_menu_item) {
+ if (p_menu_item->get_name() == "Status") {
+  currentStatus = pumps[currentPump].pumpNumber;
+ }
 
-  Serial.println(p_menu_item->has_focus()?"Yes":"No");
-  /*if(pumps[currentPump].enabled()){
-   lcd.print("d=");
-   print_time_no_pos(pumps[currentPump].duration_h, pumps[currentPump].duration_m);
-   lcd.print(" T=");
-   print_time_no_pos(pumps[currentPump].time_h, pumps[currentPump].time_m);
-  }else{ 
-   lcd.print("OFF");
-  }
-  */
+
 }
 
 void on_click_to(MenuItem* p_menu_item) {
@@ -496,7 +504,10 @@ void serialHandler() {
         ms.display();
         break;
       case 'a': // Back presed
-        if (TimeAdjustor::HMSselector == 0)
+            if(currentStatus != 0){
+        currentStatus = 0;
+      }
+        else if (TimeAdjustor::HMSselector == 0)
         {
           ms.back();
         }
@@ -507,8 +518,11 @@ void serialHandler() {
         ms.display();
         break;
       case 'd': // Select presed
-        if (TimeAdjustor::HMSselector == 0)
-        {
+      if(currentStatus != 0){
+        
+      }
+       else if (TimeAdjustor::HMSselector == 0)
+        {  
           ms.select();
         }
         else
