@@ -140,15 +140,16 @@ tm.Month  = default_month;
 tm.Year   = default_year;   
   return makeTime(tm);
 }
-time_t HMStoS(int h, int m, int s){
- unsigned long sec = ((long)h)*3600 + ((long)m)*60 + (long)s;
+long HMStoS(int h, int m, int s){
+  long sec = ((long)h)*3600 + ((long)m)*60 + (long)s;
+ /*
  Serial.print(h);
  Serial.print(':');
  Serial.print(m);
  Serial.print(':');
  Serial.println(s);
- Serial.println(sec);
- return (unsigned long) sec;
+ */
+ return (long) sec;
 
 }
   void write_consec(int* a, int v){
@@ -183,8 +184,9 @@ class Pump  {
     int time_h;
     int time_m;
     int time_s;
+    long time_to_water;
     bool isWatering = false;
-    int alarmId, alarmEndId;
+    AlarmId alarmId = 0, alarmEndId = 0;
     bool _enabled = false;
     Pump ( int pNum)
       :  pumpNumber(pNum) {
@@ -192,27 +194,16 @@ class Pump  {
     ~Pump(){
       Serial.println("DESTROYED");
     }
-    void setWateringTime() {
-      Alarm.write(alarmId , HMStoS(time_h, time_m, time_s) );
-    }
+
     void toggle() {
       if (_enabled) {
         _enabled = false;
-        Alarm.disable(alarmId);
-        stopWatering();
       } else if (!_enabled) {
         _enabled = true;
-        Alarm.enable(alarmId);
       }
     }
     bool enabled() const {
       return _enabled;
-    }
-    void startWatering() {
-      isWatering = true;
-    }
-    void stopWatering() {
-      isWatering = false;
     }
     void saveState(){
     int address = pumpNumber * 8;
@@ -238,8 +229,6 @@ class Pump  {
     }
     
   private:
-
-    unsigned long _wateringTime;
 };
 
 //Pump objects
@@ -303,7 +292,7 @@ class MyRenderer : public MenuComponentRenderer
 
 
     }
-    byte get_pump_glyph(bool state, bool isOn) const{
+    byte get_pump_glyph(bool state , bool isOn) const{
       if(state){
         if( t > 10){
         flickr = !flickr;
@@ -441,7 +430,6 @@ void on_click_ti(MenuItem* p_menu_item) {
 }
 void on_click_sa(MenuItem* p_menu_item){
    pumps[currentPump].saveState();
-   pumps[currentPump].setWateringTime();
 }
 void on_click_lo(MenuItem* p_menu_item){
   pumps[currentPump].readState();
@@ -461,36 +449,6 @@ void on_click_set_sa(MenuItem* p_menu_item){
 }
 
 
-//Pump alarm callback functions
-void pump_alarm_1() {
-  Serial.println("ALARM 1 CALLBACK");
-  pumps[0].startWatering();
-  Alarm.write(pumps[0].alarmEndId, HMStoS(pumps[0].duration_h, pumps[0].duration_m, pumps[0].duration_s));
-}
-void pump_alarm_2() {
-  pumps[1].startWatering();
-  Alarm.write(pumps[1].alarmEndId, HMStoS(pumps[1].duration_h, pumps[1].duration_m, pumps[1].duration_s));
-}
-void pump_alarm_3() {
-  pumps[2].startWatering();
-  Alarm.write(pumps[2].alarmEndId, HMStoS(pumps[2].duration_h, pumps[2].duration_m, pumps[2].duration_s));
-}
-void pump_alarm_4() {
-  pumps[3].startWatering();
-  Alarm.write(pumps[3].alarmEndId, HMStoS(pumps[3].duration_h, pumps[3].duration_m, pumps[3].duration_s));
-}
-void pump_end_alarm_1() {
-  pumps[0].stopWatering();
-}
-void pump_end_alarm_2() {
-  pumps[1].stopWatering();
-}
-void pump_end_alarm_3() {
-  pumps[2].stopWatering();
-}
-void pump_end_alarm_4() {
-  pumps[3].stopWatering();
-}
 
 
 // Menu variables
@@ -581,6 +539,20 @@ void serialHandler() {
 
 
 }
+void alarmHandler(){
+  for (int i = 0; i < numPumps; i++) {
+    long currentsec = HMStoS(hour(),minute(),second());
+    long alarmsec = HMStoS(pumps[i].time_h , pumps[i].time_m ,pumps[i].time_s );
+    long durationsec = HMStoS(pumps[i].duration_h , pumps[i].duration_m ,pumps[i].duration_s );
+    long ttw = alarmsec - currentsec;
+    pumps[i].time_to_water = (ttw > 0 )? ttw : ttw+86400;
+    if((currentsec-alarmsec) >= 0 && (currentsec - alarmsec) <= durationsec){
+      pumps[i].isWatering =true;
+    }else{
+      pumps[i].isWatering =false;
+    }
+  }
+}
 
 void addSubMenus(Menu* m){
     ms.get_root_menu().add_menu(m);
@@ -591,7 +563,6 @@ void setup() {
 
   Serial.begin(9600);
   lcd.begin(16, 2);
-  Alarm.delay(2000);
 
   lcd.createChar(0,offChar);
     lcd.createChar(1,onChar1);
@@ -615,37 +586,7 @@ void setup() {
   //Read pump values from memory
   for (int i = 0; i < numPumps; i++) {
   pumps[i].readState();
-  pumps[i].duration_s =0;
-  pumps[i].time_s =0;
   }
-  
-  //Create alarms for pumps
-  pumps[0].alarmId = Alarm.alarmRepeat(5, &pump_alarm_1);
-  pumps[1].alarmId = Alarm.alarmRepeat(5, &pump_alarm_2);
-  pumps[2].alarmId = Alarm.alarmRepeat(5, &pump_alarm_3);
-  pumps[3].alarmId = Alarm.alarmRepeat(5, &pump_alarm_4);
-
-  //The alarm to stop the water flowing
-  pumps[0].alarmEndId = Alarm.timerOnce(5, &pump_end_alarm_1);
-  pumps[1].alarmEndId = Alarm.timerOnce(5, &pump_end_alarm_2);
-  pumps[2].alarmEndId = Alarm.timerOnce(5, &pump_end_alarm_3);
-  pumps[3].alarmEndId = Alarm.timerOnce(5, &pump_end_alarm_4);
-
-  Serial.println(pumps[0].alarmId);
-  Serial.println(Alarm.read(pumps[0].alarmId));
-  
-  //Writing then disabling/enabling alarms
-  for (int i = 0; i < numPumps; i++) {
-    Serial.print(i);
-    Serial.print(':');
-    Serial.print(pumps[i].pumpNumber);
-    pumps[i].setWateringTime();
-    Alarm.disable(pumps[i].alarmEndId);
-    if(!pumps[i].enabled())
-    Alarm.disable(pumps[i].alarmId);
-  }
-  Serial.println(pumps[0].alarmId);
-  Serial.println(Alarm.read(pumps[0].alarmId));
   
   //Add the settings to the pumps
   sm.add_item(&sm_t);
@@ -677,8 +618,14 @@ void loop() {
   serialHandler();
   ms.display();
   Alarm.delay(50);
-  
-
+   Serial.print(pumps[0].time_to_water);
+ /*  Serial.print(' ');
+   Serial.print(HMStoS(hour(),minute(),second()));
+   Serial.println(' ');
+   time_t tta =  Alarm.read(pumps[0].alarmId) - HMStoS(hour(),minute(),second()) ;
+  Serial.println(tta);
+  */
+  alarmHandler();
   //Sleep Clock
   if ( (now() - oldTime) > 3) {
     my_renderer.sleep(true);
