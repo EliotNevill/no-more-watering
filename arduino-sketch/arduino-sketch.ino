@@ -573,13 +573,40 @@ MenuItem pm_set_lo("Load", &on_click_lo);
 
 //Serial Handerler for inputs
 //TODO replace with buttons
+const int sw1Pin=14;
+const int sw2Pin=15;
+const int sw3Pin=16;
+const int sw4Pin=17;
+int sw1State = 0;
+int sw2State = 0;
+int sw3State = 0;
+int sw4State = 0;
+
+
+int i;
+
+int prevSw[]= {0,0,0,0};
+
 void serialHandler() {
-  char inChar;
-  if ((inChar = Serial.read()) > 0) {
+   sw1State = digitalRead(sw1Pin);
+  sw2State = digitalRead(sw2Pin);
+  sw3State = digitalRead(sw3Pin);
+  sw4State = digitalRead(sw4Pin);
+
+ int switches[]={sw1State,sw2State,sw3State,sw4State};
+ 
+ 
+for( i = 0; i < 4; i++){
+  
+  if (switches[i] == HIGH ){
+  if (switches[i] != prevSw[i]) {
+
+    Serial.print(i);
+    prevSw[i] = switches[i];
     oldTime = now();
 
-    switch (inChar) {
-      case 'w': // Previus item
+    switch (i) {
+      case 0: // Previus item
         if (TimeAdjustor::HMSselector == 0) {
           ms.prev();
         } else {
@@ -587,7 +614,7 @@ void serialHandler() {
         }
         ms.display();
         break;
-      case 's': // Next item
+      case 1: // Next item
         if (TimeAdjustor::HMSselector == 0) {
           ms.next();
         }
@@ -596,7 +623,7 @@ void serialHandler() {
         }
         ms.display();
         break;
-      case 'a': // Back presed
+      case 2: // Back presed
             if(currentStatus != 0){
         currentStatus = 0;
       }
@@ -610,7 +637,7 @@ void serialHandler() {
         }
         ms.display();
         break;
-      case 'd': // Select presed
+      case 3: // Select presed
       if(currentStatus != 0){
         
       }
@@ -627,6 +654,7 @@ void serialHandler() {
       case '?':
       default:
         break;
+        
 
     }
    // Serial.println(TimeAdjustor::HMSselector);
@@ -643,6 +671,11 @@ void serialHandler() {
     }
 
   }
+  }else{prevSw[i] = 0;
+  
+    
+  }
+}
 
 
 }
@@ -670,7 +703,10 @@ void addSubMenus(Menu* m){
 
 
 void setup() {
-
+pinMode(sw1Pin,INPUT);
+  pinMode(sw2Pin,INPUT);
+  pinMode(sw3Pin,INPUT);
+  pinMode(sw4Pin,INPUT);
   Serial.begin(9600);
   lcd.begin(16, 2);
 
