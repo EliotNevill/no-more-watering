@@ -1,6 +1,8 @@
 #include <StandardCplusplus.h>
 #include <system_configuration.h>
 #include <unwind-cxx.h>
+
+
 #include <utility.h>
 #include <vector>
 #include <sstream>
@@ -65,7 +67,47 @@ byte crossChar[8] = {
   B10001,
   B10001,
 };
+byte emptyPipe00[8] = {
+  B00000,
+  B11111,
+  B00000,
+  B11111,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+};
+byte emptyPipe10[8] = {
+  B00000,
+  B11111,
+  B10000,
+  B11111,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+};
+byte emptyPipe20[8] = {
+  B00000,
+  B11111,
+  B10100,
+  B11111,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+};byte emptyPipe30[8] = {
+  B00000,
+  B11111,
+  B10101,
+  B11111,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+};
 
+byte pipes[]= {emptyPipe00[8],emptyPipe10[8],emptyPipe20[8],emptyPipe30[8]};
 
 //This class is for adjusting time
 class TimeAdjustor {
@@ -285,10 +327,59 @@ class MyRenderer : public MenuComponentRenderer
       //
       //
       //Enter Stats screen here
-      //currentStatus is the current pump number being displayed i.e. 1,2,3,4
-      //
-      //
-      //
+      lcd.leftToRight();
+      lcd.setCursor(0,0);
+      lcd.print('P');
+      lcd.print(currentStatus);
+      if(pumps[currentStatus-1].isWatering){
+        for( int i=0; i <12 ; i ++ ){
+          lcd.write(byte (7));
+          
+        }
+      }else{
+      Serial.println(pumps[currentStatus-1].time_to_water);
+     pipeLength = 11-(pumps[currentStatus-1].time_to_water/7854);
+     Serial.println(pipeLength); 
+     for(int f = 0; f < pipeLength; f++){
+      lcd.write(byte(7));
+     }
+     int whichChar = pumps[currentStatus-1].time_to_water%7854/2618;
+    
+    Serial.println(pumps[currentStatus-1].time_to_water%7854);
+     lcd.write(byte(7-whichChar));
+     Serial.println(whichChar);
+     
+   
+     
+     for(int f =0; f< 10 - pipeLength; f++){
+      lcd.write(byte(4));
+     }
+      }
+      
+     
+     
+
+     
+
+
+      
+      lcd.write(get_pump_glyph(pumps[currentStatus-1].isWatering, pumps[currentStatus-1].enabled()));
+      
+      
+      lcd.setCursor(0,1);  
+        lcd.print("D=");
+        print_time_no_pos(pumps[currentStatus-1].duration_h, pumps[currentStatus-1].duration_m);
+        lcd.print(" T=");
+        print_time_no_pos(pumps[currentStatus-1].time_h, pumps[currentStatus-1].time_m);
+
+
+        lcd.cursor();
+        lcd.setCursor(((pumps[currentStatus-1].time_to_water%7854)%2618)/261,0);
+
+        
+
+        
+      
 
 
 
@@ -358,7 +449,7 @@ class MyRenderer : public MenuComponentRenderer
 
     virtual void render_menu_item(MenuItem const & menu_item) const
     {
-       Serial.println(menu_item.has_focus()?"Yes":"No");
+       //Serial.println(menu_item.has_focus()?"Yes":"No");
       String menuItemName = menu_item.get_name();
       lcd.print(menuItemName);
       if (menuItemName == "Toggle") {
@@ -404,6 +495,8 @@ class MyRenderer : public MenuComponentRenderer
    mutable int t = 0;
    mutable int scrollTim;
    mutable int p = 1;
+   mutable int pipeLength;
+   mutable int whichChar;
 
 };
 
@@ -536,7 +629,7 @@ void serialHandler() {
         break;
 
     }
-    Serial.println(TimeAdjustor::HMSselector);
+   // Serial.println(TimeAdjustor::HMSselector);
     //Sets the current pump
     String menuName = ms.get_current_menu()->get_name();
     if (menuName == "Pump 1") {
@@ -573,6 +666,9 @@ void addSubMenus(Menu* m){
     m->add_item(&pm_stat);
     m->add_menu(&pm_set);
 }
+
+
+
 void setup() {
 
   Serial.begin(9600);
@@ -582,6 +678,16 @@ void setup() {
     lcd.createChar(1,onChar1);
       lcd.createChar(2,onChar2);
       lcd.createChar(3,crossChar);
+        lcd.createChar(4,emptyPipe00);
+          lcd.createChar(5,emptyPipe10);
+            lcd.createChar(6,emptyPipe20);
+              lcd.createChar(7,emptyPipe30);
+      
+     
+        
+      
+     
+      
   loadSettings(); 
   current_h = hour();
   current_m = minute();
@@ -632,7 +738,7 @@ void loop() {
   serialHandler();
   ms.display();
   Alarm.delay(50);
-   Serial.print(pumps[0].time_to_water);
+   //Serial.print(pumps[0].time_to_water);
  /*  Serial.print(' ');
    Serial.print(HMStoS(hour(),minute(),second()));
    Serial.println(' ');
