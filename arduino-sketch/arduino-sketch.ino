@@ -18,6 +18,9 @@
 using namespace std;
 typedef void (*Pointer)();
 
+
+
+const int pumpPins[]={8,9,11,12};
 //LCD init
 const int numPumps = 4;
 int currentPump;
@@ -571,6 +574,21 @@ MenuItem pm_set_sa("Save", &on_click_sa);
 MenuItem pm_set_lo("Load", &on_click_lo);
 
 
+
+
+void turnPumpsOn(){
+  for(int i; i<4; i++){
+    if(pumps[i].isWatering == false){
+     digitalWrite(pumpPins[i],HIGH);
+      
+    }else{
+      digitalWrite(pumpPins[i], LOW);
+      
+    }
+  }
+  
+}
+
 //Serial Handerler for inputs
 //TODO replace with buttons
 const int sw1Pin=14;
@@ -718,6 +736,11 @@ pinMode(sw1Pin,INPUT);
           lcd.createChar(5,emptyPipe10);
             lcd.createChar(6,emptyPipe20);
               lcd.createChar(7,emptyPipe30);
+
+
+  for(int i; i <4 ; i++){
+    pinMode(pumpPins[i],INPUT);
+}
       
      
         
@@ -771,6 +794,7 @@ int freeRam ()
 }
 
 void loop() {
+  
   serialHandler();
   ms.display();
   Alarm.delay(50);
@@ -788,5 +812,7 @@ void loop() {
   } else {
     my_renderer.sleep(false);
   }
+
+turnPumpsOn();
 }
 
